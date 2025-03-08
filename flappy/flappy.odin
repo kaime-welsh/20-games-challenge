@@ -53,29 +53,29 @@ UPDATE :: proc(dt: f32) {
 		if rl.IsKeyPressed(.SPACE) {
 			gs.player.vel.y = -gs.player.flap_speed
 		}
-	}
 
-	for &pipe in gs.pipes {
-		pipe.pos.x -= (gs.pipe_speed * gs.game_speed) * dt
+		for &pipe in gs.pipes {
+			pipe.pos.x -= (gs.pipe_speed * gs.game_speed) * dt
 
-		// wrap pipe (lol)
-		// NOTE: Need to find a way to keep the gap consistent.
-		if pipe.pos.x < -gs.pipe_width {
-			pipe.pos.x = 700
-			pipe.pos.y = 240 + f32(rl.GetRandomValue(-128, 128))
+			// wrap pipe (lol)
+			// NOTE: Need to find a way to keep the gap consistent.
+			if pipe.pos.x < -gs.pipe_width {
+				pipe.pos.x = 700
+				pipe.pos.y = 240 + f32(rl.GetRandomValue(-128, 128))
+			}
+
+			pipe.top = {pipe.pos.x, 0, gs.pipe_width, pipe.pos.y - gs.pipe_gap}
+			pipe.bottom = {pipe.pos.x, pipe.pos.y + gs.pipe_gap, gs.pipe_width, 400}
+
+			// collide with player
+			if (rl.CheckCollisionCircleRec(gs.player.pos, gs.player.radius, pipe.top) ||
+				   rl.CheckCollisionCircleRec(gs.player.pos, gs.player.radius, pipe.bottom)) {
+				gs.player.alive = false
+				gs.player.vel.y = -gs.player.flap_speed
+			}
 		}
-
-		pipe.top = {pipe.pos.x, 0, gs.pipe_width, pipe.pos.y - gs.pipe_gap}
-		pipe.bottom = {pipe.pos.x, pipe.pos.y + gs.pipe_gap, gs.pipe_width, 400}
-
-		if rl.CheckCollisionCircleRec(gs.player.pos, gs.player.radius, pipe.top) ||
-		   rl.CheckCollisionCircleRec(gs.player.pos, gs.player.radius, pipe.bottom) {
-			gs.player.alive = false
-			gs.player.vel.y = -gs.player.flap_speed
-			gs.player.vel.x = -(gs.player.flap_speed * 0.5)
-		}
+		gs.game_speed += 0.01 * dt
 	}
-	gs.game_speed += 0.01 * dt
 
 	if gs.player.alive == false {
 		if rl.IsKeyPressed(.SPACE) && gs.player.pos.y > 480 {
@@ -103,6 +103,4 @@ DRAW :: proc() {
 	rl.DrawText(rl.TextFormat("game_speed: %f", gs.game_speed), 2, 2, 15, rl.RED)
 }
 
-UNLOAD :: proc() {
-
-}
+UNLOAD :: proc() {}
