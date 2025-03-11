@@ -34,9 +34,10 @@ Player :: struct {
 }
 
 Coin :: struct {
-	pos:    [2]f32,
-	radius: f32,
-	value:  int,
+	pos:               [2]f32,
+	radius:            f32,
+	value:             int,
+	collection_radius: f32,
 }
 EntityType :: union {
 	Player,
@@ -89,6 +90,7 @@ gs: GameState
 
 LOAD :: proc() {
 	gs = GameState{}
+	gs.game_speed = 1.0
 	gs.coin_time = 1.25
 	gs.player_handle = make_entity(
 		Player{pos = {128, 240}, thrust = 40, gravity = 15, radius = 16, max_speed = 400},
@@ -98,10 +100,22 @@ LOAD :: proc() {
 
 UPDATE :: proc(dt: f32) {
 	clean_entities()
-	{ 	// Create coins
+
+	{ 	// Update coins
 		gs.coin_timer -= dt
 		if gs.coin_timer <= 0 {
-			make_entity(Coin{pos = {700, 240 + f32(rl.GetRandomValue(-128, 128))}, radius = 12})
+			// TODO: I would like to make a system that create coins in patterns.
+			// Could possibly just generate a random number of coins to spawn, then pick a height
+			// for them to spawn at, and maybe just spawn from a slice or something?
+			// idk i'll figure somethign out later
+
+			make_entity(
+				Coin {
+					pos = {700, 240 + f32(rl.GetRandomValue(-128, 128))},
+					radius = 12,
+					collection_radius = 48,
+				},
+			)
 			gs.coin_timer = gs.coin_time
 		}
 
@@ -109,10 +123,21 @@ UPDATE :: proc(dt: f32) {
 		for &e in Entities {
 			if .alive in e.flags {
 				if coin, ok := &e.type.(Coin); ok {
-					coin.pos.x -= 150 * dt
-
-					// Check coin collision
 					player := &get_entity(gs.player_handle).type.(Player)
+
+					coin.pos.x -= (150 * gs.game_speed) * dt
+
+					// Check collision for coin follow
+					if rl.CheckCollisionCircles(
+						coin.pos,
+						coin.collection_radius,
+						player.pos,
+						player.radius,
+					) {
+						coin.pos = linalg.lerp(coin.pos, player.pos, 0.3)
+					}
+
+					// Check player collision
 					if rl.CheckCollisionCircles(coin.pos, coin.radius, player.pos, player.radius) {
 						e.flags += {.dead}
 					}
@@ -145,6 +170,9 @@ UPDATE :: proc(dt: f32) {
 			player.vel.y = 0
 		}
 	}
+
+	// Increase game speed as game progresses
+	gs.game_speed += 0.01 * dt
 }
 
 DRAW :: proc() {
@@ -154,6 +182,7 @@ DRAW :: proc() {
 			if .alive in e.flags {
 				if coin, ok := e.type.(Coin); ok {
 					rl.DrawCircleV(coin.pos, coin.radius, rl.YELLOW)
+					rl.DrawCircleLinesV(coin.pos, coin.collection_radius, rl.RED)
 				}
 			}
 		}
@@ -166,6 +195,7 @@ DRAW :: proc() {
 
 	{ 	// Debug UI
 		rl.GuiLabel({2, 2, 64, 16}, rl.TextFormat("Entities: %i", living_entities))
+		rl.DrawText(rl.TextFormat("Game Speed: %f", gs.game_speed), 2, 18, 16, rl.GREEN)
 	}
 }
 
